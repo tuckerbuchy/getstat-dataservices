@@ -32,7 +32,7 @@ def most_top_tens(start_date, end_date):
         .withColumnRenamed("sum(RankedInTen)", "TimesInTopTen")\
         .sort(desc("TimesInTopTen"))
 
-def most_rank_1_changes(start_date, end_date):
+def most_rank_1_changes(start_date, end_date, daily_change=True):
     """
     Answers the question:
 
@@ -44,12 +44,16 @@ def most_rank_1_changes(start_date, end_date):
     """
     df = SerpEtl.get_serps()
 
+    # Filter out for Crawl date band.
+    df = df.filter(df['CrawlDate'] >= to_date(lit(start_date)).cast(TimestampType()))\
+        .filter(df['CrawlDate'] <= to_date(lit(end_date)).cast(TimestampType()))
 
     # Extract URLs ranked at number 1, as that is all we are concerned about.
     df = df.filter(df['Rank'] == 1).select('Keyword', 'CrawlDate', 'URL').withColumnRenamed('URL', 'TopURL').orderBy("Keyword", "CrawlDate")
 
-    # Drop duplicates as we only want 1 SERP per keyword per day.
-    df = df.drop_duplicates(['Keyword', 'CrawlDate'])
+    if daily_change:
+        # Drop duplicates as we only want 1 SERP per keyword per day.
+        df = df.drop_duplicates(['Keyword', 'CrawlDate'])
 
     # Partition the DF by keyword, as we want to find change over time based on keyword.
     w = Window.partitionBy("Keyword").orderBy("CrawlDate")
@@ -61,7 +65,7 @@ def most_rank_1_changes(start_date, end_date):
     return df.withColumn("Changed", (df['PrevTopURL'] != df['TopURL']).cast(IntegerType()))\
         .groupBy("Keyword").agg({"Changed": "sum"}).withColumnRenamed("sum(Changed)", "NumberOfChanges").sort(desc("NumberOfChanges"))
 
-def consistency_across_devices():
+def consistency_across_devices(start_date, end_date):
     """
     Answers the question:
 
@@ -84,14 +88,20 @@ def consistency_across_devices():
     """
 
     # TODO: What if there is no smartphone for a desktop? May need to filter these out.
-    serps = SerpEtl.get_serps()
-    serps = serps.fillna('', subset=['location']) # location nulls mess up the join.
+    df = SerpEtl.get_serps()
 
-    desktop_serps = serps.filter(serps['Device'] == 'desktop')
-    mobile_serps = serps.filter(serps['Device'] == 'smartphone')
+    # Filter out for Crawl date band.
+    df = df.filter(df['CrawlDate'] >= to_date(lit(start_date)).cast(TimestampType()))\
+        .filter(df['CrawlDate'] <= to_date(lit(end_date)).cast(TimestampType()))
 
-    # Join on rank and then compare urls from the two devices...
-    serps_scored = desktop_serps.alias('desktop')\
+    # Location nulls mess up the join, so fill this with empty string.
+    df = df.fillna('', subset=['location'])
+
+    desktop_serps = df.filter(df['Device'] == 'desktop')
+    mobile_serps = df.filter(df['Device'] == 'smartphone')
+
+    # Join on rank and then compare urls from the two devices.
+    df = desktop_serps.alias('desktop')\
         .join(mobile_serps.alias('mobile'),
               (col('desktop.keyword') == col('mobile.keyword')) &
               (col('desktop.market') == col('mobile.market')) &
@@ -99,8 +109,9 @@ def consistency_across_devices():
               (col('desktop.rank') == col('mobile.rank')))\
         .withColumn("Same", (col('desktop.URL') == col('mobile.URL')).cast(IntegerType()))
 
-    serps_summary = serps_scored.groupBy('desktop.keyword', 'desktop.market', 'desktop.location').agg({'Same': 'sum', 'desktop.keyword': 'count'})
-    return serps_summary\
+    # Compute the number of differences between devices and the total number of rows.
+    df = df.groupBy('desktop.keyword', 'desktop.market', 'desktop.location').agg({'Same': 'sum', 'desktop.keyword': 'count'})
+    return df\
         .withColumn("ConsistencyScore", col("sum(Same)") / col("count(keyword)"))\
         .select('desktop.keyword', 'desktop.market', 'desktop.location', 'ConsistencyScore')\
         .sort(desc("ConsistencyScore"))

@@ -1,5 +1,6 @@
 
-  
+# Get STAT Data Services Assesment
+
 ## Introduction 
 
 This a project completed for the Data Services team at STAT Search Analytics. The goal was to take a subset of STAT SERP data and build an ETL pipeline to process it. After processing, the SERP data would be used for some analytical functionality.     
@@ -43,14 +44,68 @@ To perform analytics on the data lake, we can simply run the scripts provided in
   
 ##### Question 1  
 Which URL has the most ranks in the top 10 across all keywords over the period?  
-`PYTHONPATH=$(pwd) python scripts/first_question.py`  
+`PYTHONPATH=$(pwd) python scripts/first_question.py`
+
+Sample Response:
+```
++--------------------+-------------+
+| URL|TimesInTopTen|
++--------------------+-------------+
+|serps.com/tools/r...|  22228|
+|moz.com/tools/ran...|  21810|
+|www.rankscanner.com/|  14965|
+| ranktrackr.com/|  14474|
+|www.shoutmeloud.c...|  11702|
+| www.google.com/|  11289|
+| www.google.co.uk/|  10000|
+| proranktracker.com/| 9142|
+|www.link-assistan...| 8831|
+|  serps.com/| 7959|
++--------------------+-------------+  
+```
 ##### Question 2  
 Provide the set of keywords (keyword information) where the rank 1 URL changes the most over the period. A change, for the purpose of this question, is when a given keyword's rank 1 URL is different from the previous day's URL.  
 `PYTHONPATH=$(pwd) python scripts/second_question.py`  
+
+Sample Response:
+```
++--------------------+---------------+
+| Keyword|NumberOfChanges|
++--------------------+---------------+
+|seo market & oppo...| 23|
+|  stat local| 21|
+|  rob search| 20|
+| answers boxes| 20|
+| serps can| 20|
+|  mobile ranking| 18|
+| rank tracker 2013| 18|
+|how much does sta...| 18|
+|precise google ra...| 18|
+|spanish serp trac...| 18|
++--------------------+---------------+
+```
 ##### Question 3  
 We would like to understand how similar the results returned for the same keyword, market, and location are across devices. For the set of keywords, markets, and locations that have data for both desktop and smartphone devices, please devise a measure of difference to indicate how similar the URLs and ranks are, and please use this to show how the mobile and desktop results in our provided data set converge or diverge over the period.  
 `PYTHONPATH=$(pwd) python scripts/third_question.py`  
-  
+
+Sample Response: 
+```
++--------------------+------+--------+-------------------+
+| keyword|market|location| ConsistencyScore|
++--------------------+------+--------+-------------------+
+| google answer boxes| US-en|  |0.13724400871459694|
+|organic share of ...| CA-en|  |0.13063599100885892|
+|  how to track serps| CA-en|  |0.12796666666666667|
+|daily serp analytics| US-en|  | 0.1264|
+| serp analysis| GB-en|  |0.12281784708685294|
+|  serp checker| GB-en|  |0.12233333333333334|
+|  how to track serps| US-en|  |0.12177777777777778|
+|organic share of ...| GB-en|  |0.12137513751375137|
+|what is rank trac...| US-en|  |0.12055005500550055|
+| organic ctr and seo| GB-en|  |0.12021111111111112|
++--------------------+------+--------+-------------------+
+```  
+
 ## The Process I Went Through  
 In the process to build this application I went through several stages. Firstly, I thought about the problem and the issues that could be encountered. The most obvious one is the size of the data. With the sample given being around 1 GB uncompressed CSV with 10 million row, and the real data more like 54 billion rows, that would be more like 5 TB of data each month to process. This means using in-memory analytics tools like Python's Pandas is out of the questions as it will not be able to read the entire dataset in. Spark was the obvious choice for this as it provides the ability to analyze datasets too large for memory. Next, was to design the ETL architecture. I initially through I would write code to watch for new SERP csv files in a directory and pump those rows into a MongoDB for efficient storage. I soon learned about Spark streaming which enabled me to run a streamer looking for files in a directory instead of writing this code to myself. I switched away from MongoDB to Parquet upon learning that the connector did not support write streaming. Parquet surprised me with it's performance gains compared to reading from CSV. I found a [blog post](https://dzone.com/articles/how-to-be-a-hero-with-powerful-parquet-google-and) describing this which convinced me. 
 
