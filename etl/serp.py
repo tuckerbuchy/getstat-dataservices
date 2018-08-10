@@ -1,18 +1,28 @@
 from pyspark.sql.types import StructType, StructField, StringType, DateType, IntegerType
 from spark_utils import get_spark_session
+import os
 
+# SERP_TARGET_DIR, SERP_SOURCE_DIR
 class SerpEtl(object):
-    # '/Users/tukrre/Downloads/stat_data/'
-    def __init__(self, data_path):
-        self.serp_stream = None
-        self.data_path = data_path
+    output_path = None  # location of the parquet output
 
-    @staticmethod
-    def get_serps():
+    def __init__(self):
+        self.serp_stream = None
+
+    @classmethod
+    def get_serps(cls):
         spark = get_spark_session()
-        # TODO: un-hardcode paths
-        df = spark.read.parquet("/Users/tukrre/Downloads/stat_data/output/").cache()
+        parquet_dir = SerpEtl.get_parquet_dir()
+        df = spark.read.parquet(parquet_dir).cache()
         return df
+
+    @classmethod
+    def get_parquet_dir(cls):
+        return os.path.join(os.environ['SERP_TARGET_DIR'], 'parquet')
+
+    @classmethod
+    def get_checkpoint_dir(cls):
+        return os.path.join(os.environ['SERP_TARGET_DIR'], 'checkpoint')
 
     def extract(self):
         spark = get_spark_session()
@@ -26,16 +36,18 @@ class SerpEtl(object):
             StructField("URL", StringType())
         ])
 
-        # TODO: Custom paths..
-        self.serp_stream = spark.readStream.csv(self.data_path, header=True, schema=schema)
+        source_dir = os.environ['SERP_SOURCE_DIR']
+        self.serp_stream = spark.readStream.csv(source_dir, header=True, schema=schema)
 
     def transform(self):
         self.serp_stream = self.serp_stream.withColumnRenamed("Crawl Date", "CrawlDate")
 
     def load(self):
+        parquet_dir = SerpEtl.get_parquet_dir()
+        checkpoint_dir = SerpEtl.get_checkpoint_dir()
         query = self.serp_stream.writeStream.format("parquet")\
-            .option("path", "/Users/tukrre/Downloads/stat_data/output/")\
-            .option("checkpointLocation", "/Users/tukrre/Downloads/stat_data/checkpoint/").start()
+            .option("path", parquet_dir)\
+            .option("checkpointLocation", checkpoint_dir).start()
         query.awaitTermination()
 
     def start(self):
