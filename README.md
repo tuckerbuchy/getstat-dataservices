@@ -39,7 +39,7 @@ To use the application, we first need to start streaming our SERP data into the 
 This will start a looping stream that watches for new files coming into the `SERP_SOURCE_DIR`. Give the streamer a bit of time to ETL the data in the directory.  
   
 #### Analytics  
-To perform analytics on the data lake, we can simply run the scripts provided in `scripts/`. There is one script for each question required by the assignment  
+To perform analytics on the data lake, we can simply run the scripts provided in `scripts/`. Open a new terminal, and run the scripts for each question. There is one script for each question required by the assignment  
   
 ##### Question 1  
 Which URL has the most ranks in the top 10 across all keywords over the period?  
