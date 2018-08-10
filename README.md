@@ -9,7 +9,8 @@ This a project completed for the Data Services team at STAT Search Analytics. Th
     
 When analytics is to be performed on the SERP data, the queries can should be made against the Parquet datastore. These queries can be made in the Spark SQL language.     
     
-## Environment Setup This project relies on PySpark being installed on the host. We recommend installing PySpark through the Anaconda package management system for ease. **Note that this application is written using Python 2.7.**    
+## Environment Setup 
+This project relies on PySpark being installed on the host. We recommend installing PySpark through the Anaconda package management system for ease. **Note that this application is written using Python 2.7.**    
   ### Installing the Dependencies  
  - [Download Anaconda](https://www.continuum.io/downloads%20%28python%202.7%29). Ensure you down the Python 2.7 version.    
  - Follow the Anaconda installation procedure.    
